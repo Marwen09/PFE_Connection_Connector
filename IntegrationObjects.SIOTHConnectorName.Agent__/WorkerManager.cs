@@ -27,7 +27,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
         public static Dictionary<int, List<Tag>> SynchroneHost = new Dictionary<int, List<Tag>>();
         public static List<string> c = new List<string>();
         public static Dictionary<int, Dictionary<string, List<Object> >> ASynchroneHost = new Dictionary<int, Dictionary<string, List<Object>>>();
-
+        public static Dictionary<String, bool> Temp_Test_Connection_Async_Host = new Dictionary<String, bool>();
 
 
         /// <summary>This method load the devices configuration from the config file into a dictionary that contains all the information needed to read and write data
@@ -39,70 +39,86 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
         ///this method check periodicaly the connectivity of multiple hosts
         public void CheckSyncHostStatus()
         {
-            Parallel.ForEach(SynchroneHost.Keys, item =>
+
+            try
             {
-                foreach (Tag tag in SynchroneHost[item])
+                Parallel.ForEach(SynchroneHost.Keys, item =>
                 {
-                    WorkerManager.PingSynchHost(tag.Ip_Address, tag.Connection_Timeout, tag.DontFragment, tag.Data);
-                }
-            });
-              
-            
-            
-
-            
-
-        }
+                    foreach (Tag tag in SynchroneHost[item])
+                    {
+                        WorkerManager.PingSynchHost(tag.Ip_Address, tag.Connection_Timeout, tag.DontFragment, tag.Data);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                WorkerLogger.TraceLog(MessageType.Error, ex.Message);
+            }
+           
+                   }
         public void CheckASyncHostStatus()
         {
-            Parallel.ForEach(ASynchroneHost.Keys, item => {
-                PingAsyncHosts(ASynchroneHost[item]["Ip_Address"], item.ToString(), Convert.ToInt32(item)).Wait();
-
-            });
+            try
+            {
+                Parallel.ForEach(ASynchroneHost.Keys, item => {
+                    PingAsyncHosts(ASynchroneHost[item]["Ip_Address"], item.ToString(), Convert.ToInt32(item)).Wait();
+                });
+            }
+            catch(Exception ex)
+            {
+                WorkerLogger.TraceLog(MessageType.Error, ex.Message);
+            }
+        
         }
 
         public static void LoadConfig()
         {
-            foreach (Tag tag in IOHelper.AgentConfig.dataExtractionProperties.DataConfig.DataConfiguration.Tags)
+            try
             {
-                if(tag.OnlyHostPing == true && tag.Synchronous == true)
+                foreach (Tag tag in IOHelper.AgentConfig.dataExtractionProperties.DataConfig.DataConfiguration.Tags)
                 {
-                    if (SynchroneHost.ContainsKey(tag.UpdateRate)==false)
-                    { 
-                        SynchroneHost.Add(tag.UpdateRate, new List<Tag>());
-                        SynchroneHost[tag.UpdateRate].Add(tag);
-                    }
-                    else
+                    if (tag.OnlyHostPing == true && tag.Synchronous == true)
                     {
-                        SynchroneHost[tag.UpdateRate].Add(tag);
+                        if (SynchroneHost.ContainsKey(tag.UpdateRate) == false)
+                        {
+                            SynchroneHost.Add(tag.UpdateRate, new List<Tag>());
+                            SynchroneHost[tag.UpdateRate].Add(tag);
+                        }
+                        else
+                        {
+                            SynchroneHost[tag.UpdateRate].Add(tag);
+                        }
                     }
+                    else if (tag.OnlyHostPing == true && tag.Synchronous == false)
+                    {
+                        if (ASynchroneHost.ContainsKey(tag.UpdateRate) == false)
+                        {
+                            ASynchroneHost.Add(tag.UpdateRate, new Dictionary<string, List<Object>>());
+                            ASynchroneHost[tag.UpdateRate].Add("TagList", new List<Object>());
+                            ASynchroneHost[tag.UpdateRate].Add("Ip_Address", new List<Object>());
+                            ASynchroneHost[tag.UpdateRate]["TagList"].Add(tag);
+                            ASynchroneHost[tag.UpdateRate]["Ip_Address"].Add(tag.Ip_Address);
+
+
+
+                        }
+                        else
+                        {
+                            ASynchroneHost[tag.UpdateRate]["TagList"].Add(tag);
+                            ASynchroneHost[tag.UpdateRate]["Ip_Address"].Add(tag.Ip_Address);
+                        }
+                    }
+
                 }
-                else if( tag.OnlyHostPing == true && tag.Synchronous == false)
-                {
-                    if (ASynchroneHost.ContainsKey(tag.UpdateRate) == false)
-                    {
-                        ASynchroneHost.Add(tag.UpdateRate, new Dictionary<string, List<Object>> ());
-                        ASynchroneHost[tag.UpdateRate].Add("TagList", new List<Object>());
-                        ASynchroneHost[tag.UpdateRate].Add("Ip_Address", new List<Object>());
-                        ASynchroneHost[tag.UpdateRate]["TagList"].Add(tag);
-                        ASynchroneHost[tag.UpdateRate]["Ip_Address"].Add(tag.Ip_Address);
-
-
-
-                    }
-                    else
-                    {
-                        ASynchroneHost[tag.UpdateRate]["TagList"].Add(tag);
-                        ASynchroneHost[tag.UpdateRate]["Ip_Address"].Add(tag.Ip_Address);
-                    }
-                }
-         
+                Initialiaze_Test_Connection();
+                WorkerLogger.TraceLog(MessageType.Control, "Load  dictionnary configuration succeeded");
             }
-              Initialiaze_Test_Connection();
-
-
-        }
-        public static Dictionary<String, bool> Temp_Test_Connection_Async_Host = new Dictionary<String, bool>();
+            catch(Exception ex)
+            {
+                WorkerLogger.TraceLog(MessageType.Error, ex.Message);
+            }
+                   }
+        
        
         public static async Task PingAsyncHosts(List<object> addresses,string updateRate,int update)
         {
@@ -176,14 +192,13 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                 PingReply reply = pingSender.Send(Ip_Address, timeout, buffer, options);
                 if (reply.Status == IPStatus.Success)
                 {
-                    Console.WriteLine("Host:: " + Ip_Address + " is connected");
-                 
+                    WorkerLogger.TraceLog(MessageType.Debug, Ip_Address + " is connected");
                 }
-                else { Console.WriteLine("Host:: " + Ip_Address + " is not connected"); }
+                else { WorkerLogger.TraceLog(MessageType.Debug, Ip_Address + " is not connected"); }
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Exception:: " + ex.Message);
+                WorkerLogger.TraceLog(MessageType.Error, ex.Message);
             }
         }
         public static bool PingPort(string hostUri, int portNumber)
