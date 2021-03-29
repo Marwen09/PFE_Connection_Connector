@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <Platforms>AnyCPU;x64;x86</Platforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IntegrationObjects.SIOTHConnectorName.Helper\IntegrationObjects.SIOTHConnectionConnector..Helper.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="IntegrationObjects.Logger.SDK">
+      <HintPath>..\References\IntegrationObjects.Logger.SDK.dll</HintPath>
+    </Reference>
+    <Reference Include="IntegrationObjects.SIOTHAPI">
+      <HintPath>..\References\IntegrationObjects.SIOTHAPI.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>

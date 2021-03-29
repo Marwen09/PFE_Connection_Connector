@@ -1,0 +1,10 @@
+﻿{
+  "profiles": {
+    "IntegrationObjects.SIOTHConnectorName.Agent": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

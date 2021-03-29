@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="IntegrationObjects.Agents.Common.WorkerFilesManager">
+    <Position X="5" Y="2" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAQABgACAAACAAAAAAAABoEAAAACAAIAgAAAAAAAAAA=</HashCode>
+      <FileName>INIFileManager\WorkerFilesManager.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="IntegrationObjects.Agents.Common.WorkerIniConfiguration" Collapsed="true">
+    <Position X="6.75" Y="2.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AgAAAAQAAAAgAAAAAAAAAAACAACAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>INIFileManager\WorkerIniConfiguration.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="IntegrationObjects.Agents.Common.AgentExceptions">
+    <Position X="10.25" Y="3" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>LogManager\AgentExceptions.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="IntegrationObjects.Agents.Common.WorkerLogger">
+    <Position X="8.5" Y="2.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAEAAMEAAAAA4AAMAAgABAAAEAIAQQAAABABABBAAI=</HashCode>
+      <FileName>LogManager\WorkerLogger.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="IntegrationObjects.Agents.Common.AgentCommonMessages">
+    <Position X="6.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAgAAAAAAABAAAAIIEAAAAAABAAAQAAAAAAA=</HashCode>
+      <FileName>AgentCommonMessages.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>

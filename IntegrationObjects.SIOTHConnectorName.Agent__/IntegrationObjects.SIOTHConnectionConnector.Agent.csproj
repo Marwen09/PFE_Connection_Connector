@@ -1,0 +1,34 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <UserSecretsId>dotnet-IntegrationObjects.SIOTHConnectorName.Agent-12DEEAB1-4CD5-48AC-8CDC-82E660CB2A7E</UserSecretsId>
+    <Platforms>AnyCPU;x64;x86</Platforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="JUST" Version="5.1.3" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="3.1.5" />
+    <PackageReference Include="Nancy" Version="2.0.0" />
+    <PackageReference Include="NetMQ" Version="4.0.1.6" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="5.0.0" />
+    <PackageReference Include="System.Diagnostics.Process" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IntegrationObjects.Agents.Common\IntegrationObjects.Agents.Common.csproj" />
+    <ProjectReference Include="..\IntegrationObjects.SIOTHConnectorName.Helper\IntegrationObjects.SIOTHConnectionConnector..Helper.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="IntegrationObjects.Logger.SDK">
+      <HintPath>..\References\IntegrationObjects.Logger.SDK.dll</HintPath>
+    </Reference>
+    <Reference Include="IntegrationObjects.SIOTHAPI">
+      <HintPath>..\References\IntegrationObjects.SIOTHAPI.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Security.Permissions">
+      <HintPath>..\References\System.Security.Permissions.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>
