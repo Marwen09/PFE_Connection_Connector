@@ -17,12 +17,8 @@ namespace IntegrationObjects.SIOTHConnectorName.Helper
         public Boolean DontFragment { get; set; }
         public int Port { get; set; }
         public String Data { get; set; }
+        public Boolean Status { get; set; } 
 
-
-
-        public Dictionary<string, Object> Values = new Dictionary<string, Object>();
-    
-        
         public Tag() {
 
         }

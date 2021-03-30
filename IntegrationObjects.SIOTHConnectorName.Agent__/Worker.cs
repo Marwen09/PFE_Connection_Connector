@@ -121,7 +121,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                 {
                     WorkerLogger.Control(CommonMessages.IsPublisherWorker);
                     WorkerSource = new WorkerSource();
-                    WorkerSource.StartCollectingData();
+                    WorkerSource.Connection();
                 }
                 else if (IOHelper.AgentConfig.Agent_Type.Equals("Destination"))
                 {
@@ -135,7 +135,6 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                         IsBackground = true
                     };
                     WorkerDestinationThread.Start();
-                    //WorkerDestination.StartWritingData();
                 }
 
             }

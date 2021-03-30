@@ -6,9 +6,10 @@ namespace IntegrationObjects.SIOTHConnectorName.Helper
 {
  public   class Item
     {
-        public object Value { get; set; }
+        public Boolean Status { get; set; }
 
-        public string TagName { get; set; } //DeviceName/GroupeName/TagName/PropertyName
-        public string TimeStamp { get; set; }
+        public string TagName { get; set; } //TagName/Address
+        public string Address { get; set; }
+        public DateTime TimeStamp { get; set; }
     }
 }

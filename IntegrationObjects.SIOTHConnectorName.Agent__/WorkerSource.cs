@@ -27,25 +27,25 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
             {
                 string strError = string.Empty;
                 zmqPublisher = new ZMQPublisher();
-                //this.ZMQAddress = ZMQAddress;
                 zmqPublisher.InitialisePublisher(IOHelper.AgentConfig.ZMQAddress, out strError, 1000, IOHelper.AgentConfig.ZMQSecurity);
             }
-            catch (Exception EX0)
+            catch (Exception ex)
             {
-                //Log error
+                WorkerLogger.TraceLog(MessageType.Error, ex.Message);
             }
 
         }
-        public void StartCollectingData()
+        //Check Host and/or port status
+        public void Connection()
         {
             try
             {
                 //To DO Connect To Source Device
-             /*   Thread ConnectThread = new Thread(ConnectToBACnetDevices);
-                ConnectThread.Name = "Thread To Connect To Device";
-                ConnectThread.IsBackground = true;
-                ConnectThread.Start();
-             */
+                Thread ConnectPortsThread = new Thread(ConnectPortStatus);
+                ConnectPortsThread.Name = "Thread To Connect To Device";
+                ConnectPortsThread.IsBackground = true;
+                ConnectPortsThread.Start();
+             
 
                 //To Check Device Status
                 Thread SynchroneHostStatusThread = new Thread(CheckSyncHostStatus);
@@ -72,10 +72,8 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
             }
             catch (Exception Ex)
             {
-             
-               
                 WorkerLogger.TraceLog(MessageType.Error, Ex.Message);
-                throw Ex;
+
             }
         }
         public void PublishDADataToSIOTHBUS(object obj)
@@ -97,7 +95,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                     }
 
                 }
-                Thread.Sleep(1000);
+                Thread.Sleep(IOHelper.AgentConfig.PublishRate);
             }
 
         }

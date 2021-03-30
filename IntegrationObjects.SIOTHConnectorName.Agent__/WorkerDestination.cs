@@ -17,7 +17,8 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
     {
         #region Attributes
         private readonly ZMQSubscriber ZMQSubscriber;
-       private Dictionary<string, Dictionary<string, string>> MappingList = new Dictionary<string, Dictionary<string, string>>();
+
+
         #endregion
         #region Constructor
         public WorkerDestination()
@@ -76,26 +77,14 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
             
            
         }
-        public void SetMappingList()
-        {
-            foreach (FieldsMappings map in IOHelper.AgentConfig.FieldsMappings)
-            {
-                Dictionary<string, string> Map = new Dictionary<string, string>();
-                Map.Add("TagName", map.Mapping.TagName);
-                Map.Add("Value", map.Mapping.Value);
-                Map.Add("TimeStamp", map.Mapping.TimeStamp);
-                MappingList.Add(map.SchemaID, Map);
-            }
        
-  
-        }
         private void WriteDataToDestination(object obj)
         {
-          //To Check Device Status
-            Thread StatusThread = new Thread(CheckSyncHostStatus);
-            StatusThread.Name = "Thread To Check Device Status";
-            StatusThread.IsBackground = true;
-            StatusThread.Start();
+          ////To Check Device Status
+          //  Thread StatusThread = new Thread(CheckSyncHostStatus);
+          //  StatusThread.Name = "Thread To Check Device Status";
+          //  StatusThread.IsBackground = true;
+          //  StatusThread.Start();
 
             try
             {
@@ -106,24 +95,23 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                 Dictionary<string, string> SchemaToUse = new Dictionary<string, string>();
               
                 
-                   SetMappingList();
          
                 while (true)
                 {
-                   
                     string result =ZMQSubscriber.ReceiveDataFromSubscriberList(out error);
-                
+                    Console.WriteLine(result);
                         if (!string.IsNullOrEmpty(result) && string.IsNullOrEmpty(error))
                         {
                             string resSchemaId = JsonTransformer.Transform(transformerSchemaId, result);
                             var payloadSchemaId = Newtonsoft.Json.JsonConvert.DeserializeObject<Payload>(resSchemaId);
-                            if (MappingList.ContainsKey(payloadSchemaId.SchemaId))
+                            if (IOHelper.AgentConfig.Mapping.FieldsMappings.ContainsKey(payloadSchemaId.SchemaId))
                             {
-                                MappingList.TryGetValue(payloadSchemaId.SchemaId, out SchemaToUse);
+                            IOHelper.AgentConfig.Mapping.FieldsMappings.TryGetValue(payloadSchemaId.SchemaId, out SchemaToUse);
                                 string transformer = "{\"Iterator\": {    \"#loop($.Payload)\": {    \"TagName\":\"#currentvalueatpath($." + SchemaToUse["TagName"] + ")\",\"Value\":\"#currentvalueatpath($." + SchemaToUse["Value"] + ")\"}}}";
                         
                             string res = JsonTransformer.Transform(transformer, result);
                                 var payload = Newtonsoft.Json.JsonConvert.DeserializeObject<Payload>(res);
+                          
                                 var valuesfromPalyload = payload.Iterator.ToList().Select(x =>
                                         {
                                         var values = x.Values.ToList();
@@ -136,9 +124,9 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                                         {
                                         if (m[0] != null)
                                         {
-                                            if (IOHelper.AgentConfig.TagsMapping.ContainsKey(m[0].ToString()))
+                                            if (IOHelper.AgentConfig.Mapping.TagsMapping.ContainsKey(m[0].ToString()))
                                             {
-                                                WriteItem(IOHelper.AgentConfig.TagsMapping[m[0].ToString()].ToString(), m[1]);
+                                                WriteItem(IOHelper.AgentConfig.Mapping.TagsMapping[m[0].ToString()].ToString(), m[1]);
                                             }
                                         }
 

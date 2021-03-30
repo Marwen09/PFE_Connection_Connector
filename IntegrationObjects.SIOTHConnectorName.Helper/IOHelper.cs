@@ -16,19 +16,15 @@ namespace IntegrationObjects.SIOTHConnectorName.Helper
         public  string DataTransferMode { get; set; }
         public  object Agent_Type { get; set; }
         public  string Agent_SchemaID { get; set; }
-
+        public int PublishRate { get; set; }
         public   dataExtractionProperties dataExtractionProperties = new dataExtractionProperties();
-        public   Dictionary<string, object> TagsMapping { get; set; }
-     
         public  List<ZMQPublisherList> PublisherList { get; set; }
         public  string ZMQListeningOnRequest { get; set; }
         public  string SIOTHLogZMQAddress { get; set; }
         public  bool ZMQSecurity { get; set; }
         public int Status_Timeout { get; set; }
         public int ConsumerRate { get; set; }
-       // public Dictionary<string, Dictionary<string, string>> FieldsMappings { get; set; }
-        public List<FieldsMappings> FieldsMappings = new List<FieldsMappings>();
-        [DataMember]
+
         public Mapping Mapping { get; set; }
 
         public static IOHelper LoadConfiguration(string mappingFilePath, out string loadconfigError)

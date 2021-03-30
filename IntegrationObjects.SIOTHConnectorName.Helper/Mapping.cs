@@ -5,9 +5,9 @@ using System.Text;
 namespace IntegrationObjects.SIOTHConnectorName.Helper
 {
   public  class Mapping
-    { public string TagName { get; set; }
-        public string Value { get; set; }
-        public string TimeStamp { get; set; }
+    {
+        public Dictionary<string,Dictionary<string,string>> FieldsMappings = new Dictionary<string, Dictionary<string, string>>();
+        public Dictionary<string, string> TagsMapping = new Dictionary<string, string>();
 
     }
 }
