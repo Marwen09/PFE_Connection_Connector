@@ -22,6 +22,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
 {
     public class WorkerManager
     {
+             
         public PublisherClass item = new PublisherClass();
         public static BlockingCollection<PublisherClass> Publisherqueue = new BlockingCollection<PublisherClass>();
         public static Dictionary<int, List<Tag>> SynchroneHost = new Dictionary<int, List<Tag>>();
@@ -40,7 +41,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
         ///this method check periodicaly the connectivity of multiple hosts
         public void CheckSyncHostStatus()
         {
-            
+
             try
             {
                 Parallel.ForEach(SynchroneHost.Keys, item =>
@@ -55,68 +56,66 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                         Publisherqueue.Add(itemList);
                         Thread.Sleep(item);
                     }
-                    
+
                 });
             }
             catch (Exception ex)
             {
                 WorkerLogger.TraceLog(MessageType.Error, ex.Message);
             }
-           
-                   }
+
+        }
         public void CheckASyncHostStatus()
         {
             try
             {
                 Parallel.ForEach(ASynchroneHost.Keys, item => {
-                   PingAsyncHosts(ASynchroneHost[item], item.ToString(), Convert.ToInt32(item)).Wait();
+                    PingAsyncHosts(ASynchroneHost[item], item.ToString(), Convert.ToInt32(item)).Wait();
                 });
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 WorkerLogger.TraceLog(MessageType.Error, ex.Message);
             }
-        
+
         }
-        public void ConnectPortStatus()
+        public void ConnectPortTcp()
         {
-            while (true)
-            {
-                //  PingPort("192.168.1.52", 47809);
-                var client = new UdpClient();
-                IPAddress address = IPAddress.Parse("127.0.0.1");
-                Byte[] bytes = address.GetAddressBytes();
+            //PingPort("192.168.43.190", 20002);
+            IPAddress address = IPAddress.Parse("192.168.43.190");
+            int Port = 20001;
+             IPEndPoint RemoteIpEndPoint = new IPEndPoint(address, Port);
+            Byte[] sendBytes = Encoding.ASCII.GetBytes("?");
 
-                var serverEndPoint = new IPEndPoint(address, 4201);
-                client.Connect(serverEndPoint);
+            PingPortUdp("192.168.43.190", 20001, RemoteIpEndPoint, sendBytes, 2);
 
-                IPEndPoint remoteEndPoint = null;   // this will always be equal to serverEndPoint in our example
-                while (true)
-                {
-                    try
-                    {
-                        Console.WriteLine("Sending ping to server");
-                        client.Send(Array.Empty<byte>(), 0);
 
-                        Thread.Sleep(500);
-                        try { }catch(Exception ex)
-                        {
-                            Console.WriteLine(ex.Message);
-                        }
-                        _ = client.Receive(ref remoteEndPoint);
-                        Console.WriteLine("Received pong from server");
-                    }
-                    catch(SocketException ex)
-                    {
-                        Console.WriteLine(ex.ErrorCode + ":: " + ex.Message);
-                    }
-                 
-                }
 
-                Thread.Sleep(2000);
-            }
+        }
+        public void ConnectPortUdp()
+        {
             
-
+        }
+       public void PingPortUdp(string Address,int Port,  IPEndPoint RemoteIpEndPoint, Byte[] sendBytes,short Ttl) {
+            try
+            {
+   
+                UdpClient udpClient = new UdpClient(Port);
+                udpClient.Ttl = Ttl;
+                Socket uSocket = udpClient.Client;
+                uSocket.ReceiveTimeout = 5000;
+                udpClient.Connect(Address, Port);
+               // IPAddress address = IPAddress.Parse("192.168.43.190");
+              //  IPEndPoint RemoteIpEndPoint = new IPEndPoint(address, Port);
+              //  Byte[] sendBytes = Encoding.ASCII.GetBytes("?");
+                udpClient.Send(sendBytes, sendBytes.Length);
+                Byte[] receiveBytes = udpClient.Receive(ref RemoteIpEndPoint);
+                Console.WriteLine("Port: " + Port + " Open");
+            }
+            catch (SocketException e)
+            {
+                Console.WriteLine(e.ErrorCode + "::" + e.Message);
+            }
         }
         public static void LoadConfig()
         {
@@ -246,8 +245,17 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
             }
         }
 
+
         public static void PingSynchHost(Tag tag, PublisherClass itemList)
         {
+            //try
+            //{
+
+            //}
+            //catch (Exception)
+            //{
+            //    WorkerLogger.TraceLog()      
+            //}
             Ping pingSender = new Ping();
             PingOptions options = new PingOptions();
 
@@ -256,25 +264,25 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
             options.DontFragment = tag.DontFragment;
 
             // Create a buffer of 32 bytes of data to be transmitted.
-    
-            byte[] buffer = Encoding.ASCII.GetBytes(tag.Data);
-        
 
+            byte[] buffer = Encoding.ASCII.GetBytes(tag.Data);
             try
             {
                 Item element = new Item();
                 DateTime localDate = DateTime.Now;
                 element.TimeStamp = localDate;
-                element.TagName =tag.TagName + "/" + tag.Ip_Address;
+                element.TagName = tag.TagName + "/" + tag.Ip_Address;
                 PingReply reply = pingSender.Send(tag.Ip_Address, tag.Connection_Timeout, buffer, options);
                 if (reply.Status == IPStatus.Success)
                 {
                     WorkerLogger.TraceLog(MessageType.Debug, tag.Ip_Address + " is connected");
                     element.Status = true;
                     tag.Status = true;
-                    
+
                 }
-                else { WorkerLogger.TraceLog(MessageType.Debug, tag.Ip_Address + " is not connected");
+                else
+                {
+                    WorkerLogger.TraceLog(MessageType.Debug, tag.Ip_Address + " is not connected");
                     element.Status = false;
                     tag.Status = false;
                 }
@@ -289,6 +297,8 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
         {
             try
             {
+            //    Socket uSocket = udpClient.Client;
+            //    uSocket.ReceiveTimeout = 10000;
                 using (var client = new TcpClient(hostUri, portNumber))
                     Console.WriteLine("Port " + portNumber + " Connected");
                 return true;
@@ -310,7 +320,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                         break;
                     case 10056:Console.WriteLine("Socket is already connected");
                         break;
-                    case 10060:Console.WriteLine("Connection timed out");
+                    case 10060:Console.WriteLine("Connection timed out, the connection is maybe blocked by the firewall");
                         break;
                     case 10061:Console.WriteLine("Connection refused::No server application is running");
                         break;

@@ -41,7 +41,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
             try
             {
                 //To DO Connect To Source Device
-                Thread ConnectPortsThread = new Thread(ConnectPortStatus);
+                Thread ConnectPortsThread = new Thread(ConnectPortTcp);
                 ConnectPortsThread.Name = "Thread To Connect To Device";
                 ConnectPortsThread.IsBackground = true;
                 ConnectPortsThread.Start();
