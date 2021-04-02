@@ -40,12 +40,19 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
         {
             try
             {
-                //To DO Connect To Source Device
-                Thread ConnectPortsThread = new Thread(ConnectPortTcp);
-                ConnectPortsThread.Name = "Thread To Connect To Device";
-                ConnectPortsThread.IsBackground = true;
-                ConnectPortsThread.Start();
-             
+
+                //Check tcp ports sync
+                Thread ConnectPortsTcpSyncThread = new Thread(ConnectPortTcpASync);
+                ConnectPortsTcpSyncThread.Name = "Thread To Connect To Device";
+                ConnectPortsTcpSyncThread.IsBackground = true;
+                ConnectPortsTcpSyncThread.Start();
+
+                //Check tcp ports async
+                Thread ConnectPortsTcpASyncThread = new Thread(ConnectPortTcpSync);
+                ConnectPortsTcpASyncThread.Name = "Thread To Connect To Device";
+                ConnectPortsTcpASyncThread.IsBackground = true;
+                ConnectPortsTcpASyncThread.Start();
+
 
                 //To Check Device Status
                 Thread SynchroneHostStatusThread = new Thread(CheckSyncHostStatus);

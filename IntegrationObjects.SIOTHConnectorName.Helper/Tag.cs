@@ -16,8 +16,10 @@ namespace IntegrationObjects.SIOTHConnectorName.Helper
         public Boolean Synchronous { get; set; }
         public Boolean DontFragment { get; set; }
         public int Port { get; set; }
+        public string PortType { get; set; }
         public String Data { get; set; }
-        public Boolean Status { get; set; } 
+        public string  PortDescription { get; set; } 
+        public Boolean is_open { get; set; }
 
         public Tag() {
 

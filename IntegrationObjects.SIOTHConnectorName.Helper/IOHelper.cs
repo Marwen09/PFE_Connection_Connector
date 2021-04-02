@@ -59,17 +59,6 @@ namespace IntegrationObjects.SIOTHConnectorName.Helper
            // throw new NotImplementedException();
         }
     }
-    public class Marwen
-    {
-        public string TagName { get; set; }
-        public string Access_Right { get; set; }
-        public string Type { get; set; }
-        public int Instance { get; set; }
-        public List<string> Properties = new List<string>();
-        public List<string> PropertiesTypes = new List<string>(); 
-        public List<string> PropertiesAccessRight = new List<string>();
-
-        public Marwen() { }
-    }
+   
 
 }

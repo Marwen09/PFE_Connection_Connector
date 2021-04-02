@@ -22,10 +22,14 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
 {
     public class WorkerManager
     {
-             
+
         public PublisherClass item = new PublisherClass();
         public static BlockingCollection<PublisherClass> Publisherqueue = new BlockingCollection<PublisherClass>();
         public static Dictionary<int, List<Tag>> SynchroneHost = new Dictionary<int, List<Tag>>();
+        public static Dictionary<int, List<Tag>> SynchronePortTcp = new Dictionary<int, List<Tag>>();
+        public static Dictionary<int, List<Tag>> ASynchronePortTcp = new Dictionary<int, List<Tag>>();
+        public static CancellationTokenSource s_cts = new CancellationTokenSource();
+
         public static List<string> c = new List<string>();
         // public static Dictionary<int, Dictionary<string, List<Object> >> ASynchroneHost = new Dictionary<int, Dictionary<string, List<Object>>>();
         public static Dictionary<int, ASynchroneHost> ASynchroneHost = new Dictionary<int, ASynchroneHost>();
@@ -46,7 +50,8 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
             {
                 Parallel.ForEach(SynchroneHost.Keys, item =>
                 {
-                    while (true) {
+                    while (true)
+                    {
                         PublisherClass itemList = new PublisherClass();
                         foreach (Tag tag in SynchroneHost[item])
                         {
@@ -69,7 +74,8 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
         {
             try
             {
-                Parallel.ForEach(ASynchroneHost.Keys, item => {
+                Parallel.ForEach(ASynchroneHost.Keys, item =>
+                {
                     PingAsyncHosts(ASynchroneHost[item], item.ToString(), Convert.ToInt32(item)).Wait();
                 });
             }
@@ -79,37 +85,260 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
             }
 
         }
-        public void ConnectPortTcp()
+        //public void ReceiveMessage(string ip_address,int port)
+        //{
+        //    using (var udpClient = new UdpClient(ip_address,port))
+        //    {
+        //        IPAddress address = IPAddress.Parse(ip_address);
+
+        //        IPEndPoint RemoteIpEndPoint = new IPEndPoint(address, port);
+        //        Byte[] sendBytes = Encoding.ASCII.GetBytes("?");
+        //        udpClient.Connect(ip_address, port);
+        //        udpClient.Send(sendBytes, sendBytes.Length);
+        //        while (true)
+        //        {
+        //            var receivedResult = udpClient.ReceiveAsync();
+        //            Console.WriteLine("Port"+port+"Connected");
+
+        //        }
+        //    }
+        //}
+        public async Task ReceiveMessage(string ip_address, int port)
         {
-            //PingPort("192.168.43.190", 20002);
-            IPAddress address = IPAddress.Parse("192.168.43.190");
-            int Port = 20001;
-             IPEndPoint RemoteIpEndPoint = new IPEndPoint(address, Port);
-            Byte[] sendBytes = Encoding.ASCII.GetBytes("?");
+            using (var udpClient = new UdpClient(ip_address, port))
+            {
+                IPAddress address = IPAddress.Parse(ip_address);
 
-            PingPortUdp("192.168.43.190", 20001, RemoteIpEndPoint, sendBytes, 2);
+                IPEndPoint RemoteIpEndPoint = new IPEndPoint(address, port);
+                Byte[] sendBytes = Encoding.ASCII.GetBytes("?");
+                udpClient.Connect(ip_address, port);
+                udpClient.Send(sendBytes, sendBytes.Length);
 
+                var receivedResult = udpClient.ReceiveAsync().Wait(3000);
+                // Console.Write(Encoding.ASCII.GetString(receivedResult.Buffer));
+                if (receivedResult == true)
+                {
+                    Console.WriteLine(port + " connected");
+                }
+                else
+                {
+                    Console.WriteLine(port + "not connected");
+                }
+                udpClient.Close();
+                Console.WriteLine("Connection closed");
+                await Task.Delay(1);
 
+            }
+        }
+        public void ConnectPortTcpSync()
+        {
+            Parallel.ForEach(SynchronePortTcp.Keys, updateRate =>
+            {
+                while (true)
+                {
+                    foreach (Tag tag in SynchronePortTcp[updateRate])
+                    {
+
+                        s_cts.CancelAfter(tag.Connection_Timeout);
+                        PingTcpPortSync(tag).Wait();
+                        if (tag.is_open == true)
+                        {
+                            tag.PortDescription = tag.Ip_Address + ":: " + tag.Port + ":: is open";
+                        }
+                    }
+                    Thread.Sleep(updateRate);
+                }
+
+            });
+         }
+        public void ConnectPortTcpASync()
+        {
+            Parallel.ForEach(ASynchronePortTcp.Keys, updateRate =>
+            {
+                DateTime DateD = DateTime.Now;
+                PublisherClass itemList = new PublisherClass();
+                while (true)
+    {
+                    foreach (Tag tag in ASynchronePortTcp[updateRate])
+                    {
+                        Item element = new Item();
+                        element.Address = tag.Ip_Address;
+                        element.TagName = tag.TagName;
+                        DateTime localDate = DateTime.Now;
+                        element.TimeStamp = localDate;
+
+                        s_cts.CancelAfter(tag.Connection_Timeout);
+                        Task.Run(() => PingTcpPortSync(tag));
+                        if (tag.is_open == true)
+                        {
+                            tag.PortDescription = tag.Ip_Address + ":: " + tag.Port + ":: is open";
+                            element.is_open = true;
+                        }
+                        else { element.is_open = false; }
+
+            Console.WriteLine(tag.PortDescription);
+        }
+        Thread.Sleep(updateRate);
+    }
+
+});
 
         }
         public void ConnectPortUdp()
         {
-            
+
         }
-       public void PingPortUdp(string Address,int Port,  IPEndPoint RemoteIpEndPoint, Byte[] sendBytes,short Ttl) {
+        public static async Task PingTcpPortSync(Tag tag)
+        {
             try
             {
-   
+
+                var client = new TcpClient();
+                await client.ConnectAsync(tag.Ip_Address, tag.Port);
+                tag.is_open = true;
+            }
+            catch (SocketException ex)
+            {
+                switch (ex.ErrorCode)
+                {
+                    case 10054:
+                        WorkerLogger.TraceLog(MessageType.Debug, tag.PortDescription);
+                        tag.PortDescription = tag.Ip_Address + ":" + tag.Port + ":: " + "is closed or connection blocked by firewall";
+                        break;
+                    case 10048:
+                        tag.PortDescription = "Port " + tag.Port + ":: " + "Address already in use";
+                        WorkerLogger.TraceLog(MessageType.Debug, tag.PortDescription);
+                        break;
+                    case 10051:
+                        tag.PortDescription = "Port " + tag.Port + "::" + "Network is unreachable";
+                        WorkerLogger.TraceLog(MessageType.Debug, tag.PortDescription);
+                        break;
+                    case 10050:
+                        tag.PortDescription = tag.Ip_Address + ":" + tag.Port + "::" + "Network is down";
+                        WorkerLogger.TraceLog(MessageType.Debug, tag.PortDescription);
+                        break;
+                    case 10056:
+                        tag.PortDescription = tag.Ip_Address + ":" + tag.Port + "::" + "Socket is already connected";
+                        WorkerLogger.TraceLog(MessageType.Debug, tag.PortDescription);
+                        break;
+                    case 10060:
+                        tag.PortDescription = tag.Ip_Address + ":" + tag.Port + "::" + "Connection timed out, the connection is maybe blocked by the firewall";
+                        WorkerLogger.TraceLog(MessageType.Debug, tag.PortDescription);
+                        break;
+                    case 10061:
+                        tag.PortDescription = tag.Ip_Address + ":" + tag.Port + ":" + "Connection refused::No server application is running";
+                        WorkerLogger.TraceLog(MessageType.Debug, tag.PortDescription);
+                        break;
+                    case 10064:
+                        tag.PortDescription = tag.Ip_Address + ":" + tag.Port + "::" + "Host is down";
+                        WorkerLogger.TraceLog(MessageType.Debug, tag.PortDescription);
+                        break;
+                    default:
+                        tag.PortDescription = tag.Ip_Address + ":" + tag.Port + "::" + "CodeError: " + ex.ErrorCode + ":: " + ex.Message;
+                        WorkerLogger.TraceLog(MessageType.Debug, tag.PortDescription);
+                        break;
+                }
+
+            }
+        }
+        public static bool PingPortAsync(string hostUri, int portNumber)
+        {
+            try
+            {
+                //    Socket uSocket = udpClient.Client;
+                //    uSocket.ReceiveTimeout = 10000;
+                string address = hostUri;
+                int port = portNumber;
+                int connectTimeoutMilliseconds = 3000;
+
+                var tcpClient = new TcpClient();
+                var connectionTask = tcpClient
+                    .ConnectAsync(address, port).ContinueWith(task =>
+                    {
+                        return task.IsFaulted ? null : tcpClient;
+                    }, TaskContinuationOptions.ExecuteSynchronously);
+                var timeoutTask = Task.Delay(connectTimeoutMilliseconds)
+                    .ContinueWith<TcpClient>(task => null, TaskContinuationOptions.ExecuteSynchronously);
+                var resultTask = Task.WhenAny(connectionTask, timeoutTask).Unwrap();
+
+                resultTask.Wait();
+                var resultTcpClient = resultTask.Result;
+                // Or shorter by using `await`:
+                // var resultTcpClient = await resultTask;
+
+                if (resultTcpClient != null)
+                {
+                    // Connected!
+                    Console.WriteLine("Port " + port + " Connected ");
+                }
+                else
+                {
+                    // Not connected
+                    Console.WriteLine("Port " + port + " Not connected ");
+                }
+                return true;
+            }
+            catch (AggregateException ex)
+            {
+                Console.WriteLine(ex.Message);
+                return false;
+            }
+            catch (ObjectDisposedException ex0)
+            {
+                Console.WriteLine(ex0.Message);
+                return false;
+            }
+            catch (SocketException ex)
+            {
+                switch (ex.ErrorCode)
+                {
+                    case 10054:
+                        Console.WriteLine("Port " + portNumber + " closed or blocked by firewall");
+                        break;
+                    case 10048:
+                        Console.WriteLine("Address already in use");
+                        break;
+                    case 10051:
+                        Console.WriteLine("Network is unreachable");
+                        break;
+                    case 10050:
+                        Console.WriteLine("Network is down");
+                        break;
+                    case 10056:
+                        Console.WriteLine("Socket is already connected");
+                        break;
+                    case 10060:
+                        Console.WriteLine("Connection timed out, the connection is maybe blocked by the firewall");
+                        break;
+                    case 10061:
+                        Console.WriteLine("Connection refused::No server application is running");
+                        break;
+                    case 10064:
+                        Console.WriteLine("Host is down");
+                        break;
+                    default:
+                        Console.WriteLine("CodeError: " + ex.ErrorCode + ":: " + ex.Message);
+                        break;
+                }
+                return false;
+            }
+        }
+        public void PingPortUdp(string Address, int Port, IPEndPoint RemoteIpEndPoint, Byte[] sendBytes, short Ttl)
+        {
+            try
+            {
+
                 UdpClient udpClient = new UdpClient(Port);
                 udpClient.Ttl = Ttl;
                 Socket uSocket = udpClient.Client;
                 uSocket.ReceiveTimeout = 5000;
                 udpClient.Connect(Address, Port);
-               // IPAddress address = IPAddress.Parse("192.168.43.190");
-              //  IPEndPoint RemoteIpEndPoint = new IPEndPoint(address, Port);
-              //  Byte[] sendBytes = Encoding.ASCII.GetBytes("?");
+                // IPAddress address = IPAddress.Parse("192.168.43.190");
+                //  IPEndPoint RemoteIpEndPoint = new IPEndPoint(address, Port);
+                //  Byte[] sendBytes = Encoding.ASCII.GetBytes("?");
                 udpClient.Send(sendBytes, sendBytes.Length);
-                Byte[] receiveBytes = udpClient.Receive(ref RemoteIpEndPoint);
+                udpClient.ReceiveAsync();
+                //   Byte[] receiveBytes = udpClient.Receive(ref RemoteIpEndPoint);
                 Console.WriteLine("Port: " + Port + " Open");
             }
             catch (SocketException e)
@@ -135,16 +364,28 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                             SynchroneHost[tag.UpdateRate].Add(tag);
                         }
                     }
-                    else if (tag.OnlyHostPing == false && tag.Synchronous == true)
+                    else if (tag.OnlyHostPing == false && tag.Synchronous == true && tag.PortType == "TCP")
                     {
-                        if (SynchroneHost.ContainsKey(tag.UpdateRate) == false)
+                        if (SynchronePortTcp.ContainsKey(tag.UpdateRate) == false)
                         {
-                            SynchroneHost.Add(tag.UpdateRate, new List<Tag>());
-                            SynchroneHost[tag.UpdateRate].Add(tag);
+                            SynchronePortTcp.Add(tag.UpdateRate, new List<Tag>());
+                            SynchronePortTcp[tag.UpdateRate].Add(tag);
                         }
                         else
                         {
-                            SynchroneHost[tag.UpdateRate].Add(tag);
+                            SynchronePortTcp[tag.UpdateRate].Add(tag);
+                        }
+                    }
+                    else if (tag.OnlyHostPing == false && tag.Synchronous == false && tag.PortType == "TCP")
+                    {
+                        if (ASynchronePortTcp.ContainsKey(tag.UpdateRate) == false)
+                        {
+                            ASynchronePortTcp.Add(tag.UpdateRate, new List<Tag>());
+                            ASynchronePortTcp[tag.UpdateRate].Add(tag);
+                        }
+                        else
+                        {
+                            ASynchronePortTcp[tag.UpdateRate].Add(tag);
                         }
                     }
                     else if (tag.OnlyHostPing == true && tag.Synchronous == false)
@@ -152,12 +393,10 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                         if (ASynchroneHost.ContainsKey(tag.UpdateRate) == false)
                         {
                             List<Tag> TagList = new List<Tag>();
-                             List<string> Ip_Address = new List<string>();
-                               ASynchroneHost.Add(tag.UpdateRate, new ASynchroneHost(TagList,Ip_Address));
+                            List<string> Ip_Address = new List<string>();
+                            ASynchroneHost.Add(tag.UpdateRate, new ASynchroneHost(TagList, Ip_Address));
                             ASynchroneHost[tag.UpdateRate].Ip_Address.Add(tag.Ip_Address);
                             ASynchroneHost[tag.UpdateRate].TagList.Add(tag);
-                        
-
                         }
                         else
                         {
@@ -170,17 +409,17 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                 Initialiaze_Test_Connection();
                 WorkerLogger.TraceLog(MessageType.Control, "Load  dictionnary configuration succeeded");
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 WorkerLogger.TraceLog(MessageType.Error, ex.Message);
             }
-                   }
-        
-       //Ping Hosts asynchronously
-        public static async Task PingAsyncHosts(ASynchroneHost addresses,string updateRate,int update)
+        }
+
+        //Ping Hosts asynchronously
+        public static async Task PingAsyncHosts(ASynchroneHost addresses, string updateRate, int update)
         {
             while (true)
-            { 
+            {
                 //Date before Ping Hosts
                 DateTime DateD = DateTime.Now;
                 PublisherClass itemList = new PublisherClass();
@@ -209,22 +448,22 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                     element.TagName = item.TagName;
                     DateTime localDate = DateTime.Now;
                     element.TimeStamp = localDate;
-           
-                  
+
+
                     if (Temp_Test_Connection_Async_Host[item.Ip_Address] == true)
                     {
                         WorkerLogger.TraceLog(MessageType.Debug, " Host with address: " + item + " is connected");
-                        element.Status = true;
-                        item.Status = true;
-                     }
+                        element.is_open = true;
+                        item.is_open = true;
+                    }
                     else
                     {
                         WorkerLogger.TraceLog(MessageType.Debug, " Host with address: " + item + " is not connected");
-                        element.Status = false;
-                        item.Status = false;
-                      }
+                        element.is_open = false;
+                        item.is_open = false;
+                    }
                     itemList.Payload.Add(element);
-                  
+
                 }
                 Publisherqueue.Add(itemList);
 
@@ -276,15 +515,15 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                 if (reply.Status == IPStatus.Success)
                 {
                     WorkerLogger.TraceLog(MessageType.Debug, tag.Ip_Address + " is connected");
-                    element.Status = true;
-                    tag.Status = true;
+                    element.is_open = true;
+                    tag.is_open = true;
 
                 }
                 else
                 {
                     WorkerLogger.TraceLog(MessageType.Debug, tag.Ip_Address + " is not connected");
-                    element.Status = false;
-                    tag.Status = false;
+                    element.is_open = false;
+                    tag.is_open = false;
                 }
                 itemList.Payload.Add(element);
             }
@@ -293,45 +532,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                 WorkerLogger.TraceLog(MessageType.Error, ex.Message);
             }
         }
-        public static bool PingPort(string hostUri, int portNumber)
-        {
-            try
-            {
-            //    Socket uSocket = udpClient.Client;
-            //    uSocket.ReceiveTimeout = 10000;
-                using (var client = new TcpClient(hostUri, portNumber))
-                    Console.WriteLine("Port " + portNumber + " Connected");
-                return true;
-            }
-            catch (SocketException ex)
-            {
-            //    Console.WriteLine(ex.ErrorCode);
-            //    Console.WriteLine("Error pinging host:'" + hostUri + ":" + portNumber.ToString() + "'");
-            //    Console.WriteLine(ex.Message);
-                switch (ex.ErrorCode)
-                {
-                    case 10054: Console.WriteLine("Port "+portNumber+" closed or blocked by firewall");
-                        break;
-                    case 10048: Console.WriteLine("Address already in use");
-                        break;
-                    case 10051:Console.WriteLine("Network is unreachable");
-                        break;
-                    case 10050:Console.WriteLine("Network is down");
-                        break;
-                    case 10056:Console.WriteLine("Socket is already connected");
-                        break;
-                    case 10060:Console.WriteLine("Connection timed out, the connection is maybe blocked by the firewall");
-                        break;
-                    case 10061:Console.WriteLine("Connection refused::No server application is running");
-                        break;
-                    case 10064:Console.WriteLine("Host is down");
-                        break;
-                    default:Console.WriteLine("CodeError: "+ex.ErrorCode+":: "+ex.Message);
-                        break;
-                }
-                return false;
-            }
-        }
+
         public static void Initialiaze_Test_Connection()
         {
             foreach (var grp in ASynchroneHost.Keys)
@@ -486,7 +687,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
         public void WriteItem(string ItemName, object Value)
         {
 
-            Console.WriteLine(ItemName+"::"+Value);
+            Console.WriteLine(ItemName + "::" + Value);
 
         }
     }
