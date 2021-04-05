@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-
+using System.Net;
 using System.Text;
 
 namespace IntegrationObjects.SIOTHConnectorName.Helper
@@ -21,6 +21,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Helper
         public string  PortDescription { get; set; } 
         public Boolean is_open { get; set; }
         public String TagKey { get; set; }
+        public IPEndPoint RemoteIpEndPoint { get; set; }
         public Tag() {
 
         }
