@@ -20,7 +20,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Helper
         public String Data { get; set; }
         public string  PortDescription { get; set; } 
         public Boolean is_open { get; set; }
-
+        public String TagKey { get; set; }
         public Tag() {
 
         }

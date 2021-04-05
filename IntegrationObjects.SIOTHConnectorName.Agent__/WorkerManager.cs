@@ -136,16 +136,37 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
             {
                 while (true)
                 {
+                    PublisherClass itemList = new PublisherClass();
                     foreach (Tag tag in SynchronePortTcp[updateRate])
                     {
+                        Item element = new Item();
+                        element.Address = tag.Ip_Address+":"+tag.Port;
+                        element.TagName = tag.TagKey;
 
                         s_cts.CancelAfter(tag.Connection_Timeout);
                         PingTcpPortSync(tag).Wait();
                         if (tag.is_open == true)
                         {
                             tag.PortDescription = tag.Ip_Address + ":: " + tag.Port + ":: is open";
+                            tag.is_open = true;
+                            element.is_open = true;
                         }
+                        else
+                        {
+                            tag.is_open = false;
+                            if (tag.PortDescription == null)
+                            {
+                                tag.PortDescription = "Cannot establish a Tcp connection with " + element.Address; 
+                            }
+                        }
+                        element.Description = tag.PortDescription;
+                        itemList.Payload.Add(element);
                     }
+                    Publisherqueue.Add(itemList);
+                    //foreach (Item item in itemList.Payload)
+                    //{
+                    //    Console.WriteLine(item.Description);
+                    //}
                     Thread.Sleep(updateRate);
                 }
 
@@ -155,10 +176,11 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
         {
             Parallel.ForEach(ASynchronePortTcp.Keys, updateRate =>
             {
-                DateTime DateD = DateTime.Now;
-                PublisherClass itemList = new PublisherClass();
+               
                 while (true)
     {
+                    DateTime DateD = DateTime.Now;
+                    PublisherClass itemList = new PublisherClass();
                     foreach (Tag tag in ASynchronePortTcp[updateRate])
                     {
                         Item element = new Item();
@@ -174,10 +196,17 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                             tag.PortDescription = tag.Ip_Address + ":: " + tag.Port + ":: is open";
                             element.is_open = true;
                         }
-                        else { element.is_open = false; }
+                        else { element.is_open = false;
+                            if (tag.PortDescription == null) {
+                                tag.PortDescription ="Cannot establish Tcp Connection to "+ tag.Ip_Address + ":" + tag.Port; }
+                        }
+                        element.Description=tag.PortDescription;
 
-            Console.WriteLine(tag.PortDescription);
+           
+                        itemList.Payload.Add(element);
         }
+                    Publisherqueue.Add(itemList);
+                 
         Thread.Sleep(updateRate);
     }
 
@@ -323,8 +352,9 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                 return false;
             }
         }
-        public void PingPortUdp(string Address, int Port, IPEndPoint RemoteIpEndPoint, Byte[] sendBytes, short Ttl)
+        public void PingUdpPortSync(string Address, int Port, IPEndPoint RemoteIpEndPoint, Byte[] sendBytes, short Ttl)
         {
+
             try
             {
 
@@ -346,14 +376,23 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                 Console.WriteLine(e.ErrorCode + "::" + e.Message);
             }
         }
+        public void ConnectPortUdpSync()
+        {
+            IPAddress address = IPAddress.Parse("192.168.1.62");
+             IPEndPoint RemoteIpEndPoint = new IPEndPoint(address, 20001);
+             Byte[] sendBytes = Encoding.ASCII.GetBytes("?");
+            PingUdpPortSync("192.168.1.62", 20001, RemoteIpEndPoint, sendBytes, 100);
+        }
         public static void LoadConfig()
         {
             try
             {
                 foreach (Tag tag in IOHelper.AgentConfig.dataExtractionProperties.DataConfig.DataConfiguration.Tags)
                 {
+                    
                     if (tag.OnlyHostPing == true && tag.Synchronous == true)
                     {
+                        tag.TagKey=tag.TagName + "/" + tag.Ip_Address;
                         if (SynchroneHost.ContainsKey(tag.UpdateRate) == false)
                         {
                             SynchroneHost.Add(tag.UpdateRate, new List<Tag>());
@@ -366,6 +405,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                     }
                     else if (tag.OnlyHostPing == false && tag.Synchronous == true && tag.PortType == "TCP")
                     {
+                        tag.TagKey = tag.TagKey = tag.TagName + "/" + tag.Ip_Address + ":" + tag.Port;
                         if (SynchronePortTcp.ContainsKey(tag.UpdateRate) == false)
                         {
                             SynchronePortTcp.Add(tag.UpdateRate, new List<Tag>());
@@ -378,6 +418,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                     }
                     else if (tag.OnlyHostPing == false && tag.Synchronous == false && tag.PortType == "TCP")
                     {
+                        tag.TagKey = tag.TagKey = tag.TagName + "/" + tag.Ip_Address + ":" + tag.Port;
                         if (ASynchronePortTcp.ContainsKey(tag.UpdateRate) == false)
                         {
                             ASynchronePortTcp.Add(tag.UpdateRate, new List<Tag>());
@@ -390,6 +431,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                     }
                     else if (tag.OnlyHostPing == true && tag.Synchronous == false)
                     {
+                        tag.TagKey = tag.TagName + "/" + tag.Ip_Address;
                         if (ASynchroneHost.ContainsKey(tag.UpdateRate) == false)
                         {
                             List<Tag> TagList = new List<Tag>();
@@ -445,7 +487,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                 {
                     Item element = new Item();
                     element.Address = item.Ip_Address;
-                    element.TagName = item.TagName;
+                    element.TagName = item.TagKey;
                     DateTime localDate = DateTime.Now;
                     element.TimeStamp = localDate;
 
@@ -487,14 +529,6 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
 
         public static void PingSynchHost(Tag tag, PublisherClass itemList)
         {
-            //try
-            //{
-
-            //}
-            //catch (Exception)
-            //{
-            //    WorkerLogger.TraceLog()      
-            //}
             Ping pingSender = new Ping();
             PingOptions options = new PingOptions();
 
@@ -510,7 +544,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                 Item element = new Item();
                 DateTime localDate = DateTime.Now;
                 element.TimeStamp = localDate;
-                element.TagName = tag.TagName + "/" + tag.Ip_Address;
+                element.TagName = tag.TagKey;
                 PingReply reply = pingSender.Send(tag.Ip_Address, tag.Connection_Timeout, buffer, options);
                 if (reply.Status == IPStatus.Success)
                 {

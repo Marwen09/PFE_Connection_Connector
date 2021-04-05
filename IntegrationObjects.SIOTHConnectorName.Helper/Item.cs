@@ -11,5 +11,6 @@ namespace IntegrationObjects.SIOTHConnectorName.Helper
         public string TagName { get; set; } //TagName/Address
         public string Address { get; set; }
         public DateTime TimeStamp { get; set; }
+        public string Description { get; set; } //port status
     }
 }

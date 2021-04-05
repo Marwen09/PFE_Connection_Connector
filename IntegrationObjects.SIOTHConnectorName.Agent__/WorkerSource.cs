@@ -42,18 +42,21 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
             {
 
                 //Check tcp ports sync
-                Thread ConnectPortsTcpSyncThread = new Thread(ConnectPortTcpASync);
-                ConnectPortsTcpSyncThread.Name = "Thread To Connect To Device";
+                Thread ConnectPortsTcpSyncThread = new Thread(ConnectPortTcpSync);
+                ConnectPortsTcpSyncThread.Name = "Thread To Connect To Tcp port Synchronously";
                 ConnectPortsTcpSyncThread.IsBackground = true;
                 ConnectPortsTcpSyncThread.Start();
 
                 //Check tcp ports async
-                Thread ConnectPortsTcpASyncThread = new Thread(ConnectPortTcpSync);
-                ConnectPortsTcpASyncThread.Name = "Thread To Connect To Device";
+                Thread ConnectPortsTcpASyncThread = new Thread(ConnectPortTcpASync);
+                ConnectPortsTcpASyncThread.Name = "Thread To Connect To Synchronously";
                 ConnectPortsTcpASyncThread.IsBackground = true;
                 ConnectPortsTcpASyncThread.Start();
 
-
+                Thread ConnectPortsUdpASyncThread = new Thread(ConnectPortUdpSync);
+                ConnectPortsUdpASyncThread.Name = "Thread To Connect To Device";
+                ConnectPortsUdpASyncThread.IsBackground = true;
+                ConnectPortsUdpASyncThread.Start();
                 //To Check Device Status
                 Thread SynchroneHostStatusThread = new Thread(CheckSyncHostStatus);
                 SynchroneHostStatusThread.Name = "Thread To Check Host Status Synchronously";
