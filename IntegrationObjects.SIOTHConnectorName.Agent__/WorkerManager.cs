@@ -87,34 +87,8 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
             }
 
         }
-      
-        public async Task ReceiveMessage(string ip_address, int port)
-        {
-            using (var udpClient = new UdpClient(ip_address, port))
-            {
-                IPAddress address = IPAddress.Parse(ip_address);
 
-                IPEndPoint RemoteIpEndPoint = new IPEndPoint(address, port);
-                Byte[] sendBytes = Encoding.ASCII.GetBytes("?");
-                udpClient.Connect(ip_address, port);
-                udpClient.Send(sendBytes, sendBytes.Length);
-
-                var receivedResult = udpClient.ReceiveAsync().Wait(3000);
-                // Console.Write(Encoding.ASCII.GetString(receivedResult.Buffer));
-                if (receivedResult == true)
-                {
-                    Console.WriteLine(port + " connected");
-                }
-                else
-                {
-                    Console.WriteLine(port + "not connected");
-                }
-                udpClient.Close();
-                Console.WriteLine("Connection closed");
-                await Task.Delay(1);
-
-            }
-        }
+     
         public void ConnectPortTcpSync()
         {
             Parallel.ForEach(SynchronePortTcp.Keys, updateRate =>
@@ -129,7 +103,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                         element.TagName = tag.TagKey;
 
                         s_cts.CancelAfter(tag.Connection_Timeout);
-                        PingTcpPortSync(tag).Wait();
+                        PingTcpPort(tag).Wait();
                         if (tag.is_open == true)
                         {
                             tag.PortDescription = tag.Ip_Address + ":: " + tag.Port + ":: is open";
@@ -147,11 +121,8 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                         element.Description = tag.PortDescription;
                         itemList.Payload.Add(element);
                     }
+                    itemList.SchemaId = IOHelper.AgentConfig.Agent_SchemaID;
                     Publisherqueue.Add(itemList);
-                    //foreach (Item item in itemList.Payload)
-                    //{
-                    //    Console.WriteLine(item.Description);
-                    //}
                     Thread.Sleep(updateRate);
                 }
 
@@ -175,7 +146,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                         element.TimeStamp = localDate;
 
                         s_cts.CancelAfter(tag.Connection_Timeout);
-                        Task.Run(() => PingTcpPortSync(tag));
+                        Task.Run(() => PingTcpPort(tag));
                         if (tag.is_open == true)
                         {
                             tag.PortDescription = tag.Ip_Address + ":: " + tag.Port + ":: is open";
@@ -194,19 +165,90 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
 
                         itemList.Payload.Add(element);
                     }
+                    itemList.SchemaId = IOHelper.AgentConfig.Agent_SchemaID;
                     Publisherqueue.Add(itemList);
-
                     Thread.Sleep(updateRate);
                 }
 
             });
 
         }
-        public void ConnectPortUdp()
+        public void ConnectPortUdpASync()
         {
+            Byte[] sendBytes = Encoding.ASCII.GetBytes("?");
+            while (true)
+            {
+                PublisherClass itemList = new PublisherClass();
+                Parallel.ForEach(ASynchronePortUdp.Keys, updateRate =>
+                {
+                    foreach (Tag tag in ASynchronePortUdp[updateRate])
+                    {
+                        Task.Run(() => PingUdpPort(tag, sendBytes));
+                        Item element = new Item();
+                        DateTime DateD = DateTime.Now;
+                        element.Address = tag.Ip_Address + ":" + tag.Port;
+                        element.TagName = tag.TagKey;
+                        element.TimeStamp = DateD;
+                        if (tag.is_open == true)
+                        {
+                            element.is_open = true;
+                        }
+                        else
+                        {
+                            element.is_open = false;
+                        }
+                        element.Description = tag.PortDescription;
+
+                        itemList.Payload.Add(element);
+
+                    }
+                    itemList.SchemaId = IOHelper.AgentConfig.Agent_SchemaID;
+                    Publisherqueue.Add(itemList);
+                    Thread.Sleep(updateRate);
+                });
+
+            }
+
 
         }
-        public static async Task PingTcpPortSync(Tag tag)
+        public void ConnectPortUdpSync()
+        {
+            Byte[] sendBytes = Encoding.ASCII.GetBytes("?");
+            while (true)
+            {
+                PublisherClass itemList = new PublisherClass();
+                Parallel.ForEach(SynchronePortUdp.Keys, updateRate =>
+                {
+                    foreach (Tag tag in SynchronePortUdp[updateRate])
+                    {
+                        Item element = new Item();
+                        DateTime DateD = DateTime.Now;
+                        element.Address = tag.Ip_Address + ":" + tag.Port;
+                        element.TagName = tag.TagKey;
+                        element.TimeStamp = DateD;
+                        PingUdpPort(tag, sendBytes).Wait();
+                        if (tag.is_open == true)
+                        {
+                            element.is_open = true;
+                        }
+                        else
+                        {
+                            element.is_open = false;
+                        }
+                        element.Description = tag.PortDescription;
+
+                        itemList.Payload.Add(element);
+
+                    }
+                    itemList.SchemaId = IOHelper.AgentConfig.Agent_SchemaID;
+                    Publisherqueue.Add(itemList);
+                    Thread.Sleep(updateRate);
+                });
+            }
+
+
+        }
+        public static async Task PingTcpPort(Tag tag)
         {
             try
             {
@@ -260,7 +302,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
             }
         }
 
-        public static async Task PingUdpPortSync(Tag tag, Byte[] sendBytes)
+        public static async Task PingUdpPort(Tag tag, Byte[] sendBytes)
         {
             try
             {
@@ -273,13 +315,13 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                 Byte[] receiveBytes = udpClient.Receive(ref RemoteIpEndPoint);
                 tag.is_open = true;
                 tag.PortDescription = tag.Ip_Address + ":" + tag.Port + " is open";
+                udpClient.Close();
 
             }
             catch (SocketException ex)
             {
-              
                 tag.is_open = false;
-              
+
                 switch (ex.ErrorCode)
                 {
                     case 10054:
@@ -323,32 +365,143 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
             }
 
         }
-        public void ConnectPortUdpSync()
-        {
-            
-        //     IPEndPoint RemoteIpEndPoint = new IPEndPoint(address, 51594);
-            //IPEndPoint RemoteIpEndPoint2 = new IPEndPoint(address, 20002);
-            //IPEndPoint RemoteIpEndPoint1 = new IPEndPoint(address, 20001);
-            Byte[] sendBytes = Encoding.ASCII.GetBytes("?");
-        //    PingUdpPortSync("192.168.47.1", 51594, RemoteIpEndPoint, sendBytes, 100);
 
-            //PingUdpPortSync("192.168.1.62", 20002, RemoteIpEndPoint2, sendBytes, 100);
-            //PingUdpPortSync("192.168.1.62", 20001, RemoteIpEndPoint1, sendBytes, 100);
-            Parallel.ForEach(SynchronePortUdp.Keys, updateRate =>
+
+
+        //Ping Hosts asynchronously
+        public static async Task PingAsyncHosts(ASynchroneHost addresses, string updateRate, int update)
+        {
+            while (true)
             {
-                foreach (Tag tag in SynchronePortUdp[updateRate])
+                //Date before Ping Hosts
+                DateTime DateD = DateTime.Now;
+                PublisherClass itemList = new PublisherClass();
+                //
+                var pingTasks = addresses.Ip_Address.Select(address =>
                 {
-                   PingUdpPortSync(tag,sendBytes).Wait();
-                    
-                    Console.WriteLine(tag.PortDescription);
+                    return new Ping().SendPingAsync(address.ToString());
+                });
+
+                await Task.WhenAll(pingTasks);
+
+
+                StringBuilder pingResultBuilder = new StringBuilder();
+
+                foreach (var pingReply in pingTasks)
+                {
+                    pingResultBuilder.Append(pingReply.Result.Address);
+                    Temp_Test_Connection_Async_Host[pingReply.Result.Address.ToString()] = true;
 
                 }
-            });
-            //IPAddress address = IPAddress.Parse("192.168.1.62");
-            //IPEndPoint RemoteIpEndPoint = new IPEndPoint(address,20003) ;
-            //PingUdpPortSync("192.168.1.62", 20002, RemoteIpEndPoint, sendBytes, 100).Wait();
-            Console.WriteLine("after udp ping");
 
+                foreach (var item in addresses.TagList)
+                {
+                    Item element = new Item();
+                    element.Address = item.Ip_Address;
+                    element.TagName = item.TagKey;
+                    DateTime localDate = DateTime.Now;
+                    element.TimeStamp = localDate;
+
+
+                    if (Temp_Test_Connection_Async_Host[item.Ip_Address] == true)
+                    {
+                        WorkerLogger.TraceLog(MessageType.Debug, " Host with address: " + item + " is connected");
+                        element.is_open = true;
+                        item.is_open = true;
+                        element.Description = "Host with ip: " + item.Ip_Address + "is open";
+                    }
+                    else
+                    {
+                        WorkerLogger.TraceLog(MessageType.Debug, " Host with address: " + item + " is not connected");
+                        element.is_open = false;
+                        item.is_open = false;
+                        element.Description = "Host with ip: " + item.Ip_Address + "is down or cannot be reachable";
+                    }
+                    itemList.Payload.Add(element);
+
+                }
+                Publisherqueue.Add(itemList);
+
+
+
+                Clear_Test_Connection();
+                //Date after test connection
+                DateTime DateF = DateTime.Now;
+                //We have to subtract the time of traitement from the updateRate 
+                //If the traitement time was higher than the updateRate we had to excute the next ping without waiting 
+                if (update - (DateD.Second - DateF.Second) > 0)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(update - (DateD.Second - DateF.Second)));
+                }
+                //we have to set the test_connection values to false
+                Clear_Test_Connection();
+
+            }
+        }
+
+        public static void PingSynchHost(Tag tag, PublisherClass itemList)
+        {
+            Ping pingSender = new Ping();
+            PingOptions options = new PingOptions();
+
+            // Use the default Ttl value which is 128,
+            // but change the fragmentation behavior.
+            options.DontFragment = tag.DontFragment;
+
+            // Create a buffer of 32 bytes of data to be transmitted.
+
+            byte[] buffer = Encoding.ASCII.GetBytes(tag.Data);
+            try
+            {
+                Item element = new Item();
+                DateTime localDate = DateTime.Now;
+                element.TimeStamp = localDate;
+                element.TagName = tag.TagKey;
+                PingReply reply = pingSender.Send(tag.Ip_Address, tag.Connection_Timeout, buffer, options);
+                if (reply.Status == IPStatus.Success)
+                {
+                    WorkerLogger.TraceLog(MessageType.Debug, tag.Ip_Address + " is connected");
+                    element.is_open = true;
+                    tag.is_open = true;
+                    element.Description = "Host with ip: " + tag.Ip_Address + "is open";
+                }
+                else
+                {
+                    WorkerLogger.TraceLog(MessageType.Debug, tag.Ip_Address + " is not connected");
+                    element.is_open = false;
+                    tag.is_open = false;
+                    element.Description = "Host with ip: " + tag.Ip_Address + "is down or cannot be reachable";
+                }
+                itemList.Payload.Add(element);
+            }
+            catch (Exception ex)
+            {
+                WorkerLogger.TraceLog(MessageType.Error, ex.Message);
+            }
+        }
+
+        public static void Initialiaze_Test_Connection()
+        {
+            foreach (var grp in ASynchroneHost.Keys)
+            {
+                foreach (var address in ASynchroneHost[grp].Ip_Address)
+                {
+                    Temp_Test_Connection_Async_Host.Add(address.ToString(), false);
+                }
+
+            }
+        }
+        public static void Clear_Test_Connection()
+        {
+
+            foreach (var grp in ASynchroneHost.Keys)
+            {
+                foreach (var address in ASynchroneHost[grp].Ip_Address)
+                {
+                    Temp_Test_Connection_Async_Host[address.ToString()] = false;
+                }
+
+            }
         }
         public static void LoadConfig()
         {
@@ -400,7 +553,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
                     {
                         tag.TagKey = tag.TagKey = tag.TagName + "/" + tag.Ip_Address + ":" + tag.Port;
                         IPAddress address = IPAddress.Parse(tag.Ip_Address);
-                        tag.RemoteIpEndPoint= new IPEndPoint(address, tag.Port);
+                        tag.RemoteIpEndPoint = new IPEndPoint(address, tag.Port);
                         if (SynchronePortUdp.ContainsKey(tag.UpdateRate) == false)
                         {
                             SynchronePortUdp.Add(tag.UpdateRate, new List<Tag>());
@@ -451,139 +604,6 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
             catch (Exception ex)
             {
                 WorkerLogger.TraceLog(MessageType.Error, ex.Message);
-            }
-        }
-
-        //Ping Hosts asynchronously
-        public static async Task PingAsyncHosts(ASynchroneHost addresses, string updateRate, int update)
-        {
-            while (true)
-            {
-                //Date before Ping Hosts
-                DateTime DateD = DateTime.Now;
-                PublisherClass itemList = new PublisherClass();
-                //
-                var pingTasks = addresses.Ip_Address.Select(address =>
-                {
-                    return new Ping().SendPingAsync(address.ToString());
-                });
-
-                await Task.WhenAll(pingTasks);
-
-
-                StringBuilder pingResultBuilder = new StringBuilder();
-
-                foreach (var pingReply in pingTasks)
-                {
-                    pingResultBuilder.Append(pingReply.Result.Address);
-                    Temp_Test_Connection_Async_Host[pingReply.Result.Address.ToString()] = true;
-
-                }
-
-                foreach (var item in addresses.TagList)
-                {
-                    Item element = new Item();
-                    element.Address = item.Ip_Address;
-                    element.TagName = item.TagKey;
-                    DateTime localDate = DateTime.Now;
-                    element.TimeStamp = localDate;
-
-
-                    if (Temp_Test_Connection_Async_Host[item.Ip_Address] == true)
-                    {
-                        WorkerLogger.TraceLog(MessageType.Debug, " Host with address: " + item + " is connected");
-                        element.is_open = true;
-                        item.is_open = true;
-                    }
-                    else
-                    {
-                        WorkerLogger.TraceLog(MessageType.Debug, " Host with address: " + item + " is not connected");
-                        element.is_open = false;
-                        item.is_open = false;
-                    }
-                    itemList.Payload.Add(element);
-
-                }
-                Publisherqueue.Add(itemList);
-
-
-
-                Clear_Test_Connection();
-                //Date after test connection
-                DateTime DateF = DateTime.Now;
-                //We have to subtract the time of traitement from the updateRate 
-                //If the traitement time was higher than the updateRate we had to excute the next ping without waiting 
-                if (update - (DateD.Second - DateF.Second) > 0)
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(update - (DateD.Second - DateF.Second)));
-                }
-                //we have to set the test_connection values to false
-                Clear_Test_Connection();
-
-            }
-        }
-
-        public static void PingSynchHost(Tag tag, PublisherClass itemList)
-        {
-            Ping pingSender = new Ping();
-            PingOptions options = new PingOptions();
-
-            // Use the default Ttl value which is 128,
-            // but change the fragmentation behavior.
-            options.DontFragment = tag.DontFragment;
-
-            // Create a buffer of 32 bytes of data to be transmitted.
-
-            byte[] buffer = Encoding.ASCII.GetBytes(tag.Data);
-            try
-            {
-                Item element = new Item();
-                DateTime localDate = DateTime.Now;
-                element.TimeStamp = localDate;
-                element.TagName = tag.TagKey;
-                PingReply reply = pingSender.Send(tag.Ip_Address, tag.Connection_Timeout, buffer, options);
-                if (reply.Status == IPStatus.Success)
-                {
-                    WorkerLogger.TraceLog(MessageType.Debug, tag.Ip_Address + " is connected");
-                    element.is_open = true;
-                    tag.is_open = true;
-
-                }
-                else
-                {
-                    WorkerLogger.TraceLog(MessageType.Debug, tag.Ip_Address + " is not connected");
-                    element.is_open = false;
-                    tag.is_open = false;
-                }
-                itemList.Payload.Add(element);
-            }
-            catch (Exception ex)
-            {
-                WorkerLogger.TraceLog(MessageType.Error, ex.Message);
-            }
-        }
-
-        public static void Initialiaze_Test_Connection()
-        {
-            foreach (var grp in ASynchroneHost.Keys)
-            {
-                foreach (var address in ASynchroneHost[grp].Ip_Address)
-                {
-                    Temp_Test_Connection_Async_Host.Add(address.ToString(), false);
-                }
-
-            }
-        }
-        public static void Clear_Test_Connection()
-        {
-
-            foreach (var grp in ASynchroneHost.Keys)
-            {
-                foreach (var address in ASynchroneHost[grp].Ip_Address)
-                {
-                    Temp_Test_Connection_Async_Host[address.ToString()] = false;
-                }
-
             }
         }
         public static void ListenOnRequest(ZMQResponse zmqresp)
@@ -652,68 +672,7 @@ namespace IntegrationObjects.SIOTHConnectorName.Agent
 
 
         //Prepare the Que before publish
-        public void PrepareQue()
-        {
-            //try
-            //{
-            //    PublisherClass itemList = new PublisherClass();
-            //    foreach (BacnetReadAccessResult tag in res)
-            //    {
-
-            //        try
-            //        {
-            //            Tag tagFound = new Tag();
-            //            tagFound = null;
-            //            FindTag(tag, bloc, out tagFound);
-            //            if (tagFound != null)
-            //            {
-            //                int i = 0;
-
-
-            //                //Add all properties to values
-            //                Dictionary<string, Object> ListOfValues = new Dictionary<string, Object>();
-            //                while (i < tag.values.Count)
-            //                {
-            //                    Item element = new Item();
-            //                    DateTime localDate = DateTime.Now;
-            //                    element.TimeStamp = localDate.ToString();
-            //                    element.Value = tag.values[i].value[0].Value;
-
-            //                    element.TagName = tagFound.TageKey +"/"+ tag.values[i].property.ToString();
-            //                    itemList.Payload.Add(element);
-
-            //                    i++;
-            //                }
-            //                itemList.SchemaId = IOHelper.AgentConfig.Agent_SchemaID;//schema id ?
-
-
-
-
-            //                WorkerLogger.TraceLog(MessageType.Debug, "Collecting data from " + tagFound.TageKey + " succeeded");
-            //            }
-
-            //        }
-            //        catch (Exception ex)
-            //        {
-
-            //            WorkerLogger.TraceLog(MessageType.Error, ex.Message);
-            //        }
-
-            //    }
-            //    Publisherqueue.Add(itemList);
-
-            //}
-            //catch
-            //{ WorkerLogger.TraceLog(MessageType.Error, "Cannot read data from bloc " + bloc.Name); }
-
-
-        }
-
-
-
-
-
-
+      
         public void WriteItem(string ItemName, object Value)
         {
 
